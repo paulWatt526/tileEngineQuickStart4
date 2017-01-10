@@ -37,6 +37,9 @@ local tileEngineViewControl                 -- Reference to the UI view control
 local lastTime                              -- Used to track how much time passes between frames
 local cameraDirection                       -- Tracks the direction of the camera
 local topLightId                            -- Will track the ID of the top light
+local bottomLightId                         -- Will track the ID of the bottom light
+local leftLightId                           -- Will track the ID of the left light
+local rightLightId                          -- Will track the ID of the right light
 
 -- -----------------------------------------------------------------------------------
 -- This will load in the example sprite sheet.  Replace this with the sprite
@@ -60,6 +63,62 @@ spriteResolver.resolveForKey = function(key)
         width = frame.width,
         height = frame.height
     })
+end
+
+local stateMachine = {}
+stateMachine.init = function()
+    -- Set initial state
+    stateMachine.curState = 1
+
+    -- Add a light at the top part of the room.
+    topLightId = lightingModel.addLight({
+        row=5,column=8,r=1,g=1,b=0.7,intensity=0.75,radius=9
+    })
+end
+stateMachine.nextState = function()
+    stateMachine.curState = stateMachine.curState + 1
+    if stateMachine.curState > 4 then
+        stateMachine.curState = 1
+    end
+
+    if stateMachine.curState == 1 then
+        lightingModel.removeLight(leftLightId)
+        leftLightId = nil
+        topLightId = lightingModel.addLight({
+            row=5,column=8,r=1,g=1,b=0.7,intensity=0.75,radius=9
+        })
+    end
+
+    if stateMachine.curState == 2 then
+        lightingModel.removeLight(topLightId)
+        topLightId = nil
+        rightLightId = lightingModel.addLight({
+            row=8,column=11,r=0,g=0,b=1,intensity=0.75,radius=9
+        })
+    end
+
+    if stateMachine.curState == 3 then
+        lightingModel.removeLight(rightLightId)
+        rightLightId = nil
+        bottomLightId = lightingModel.addLight({
+            row=11,column=8,r=0,g=1,b=0,intensity=0.75,radius=9
+        })
+    end
+
+    if stateMachine.curState == 4 then
+        lightingModel.removeLight(bottomLightId)
+        bottomLightId = nil
+        leftLightId = lightingModel.addLight({
+            row=8,column=5,r=1,g=0,b=0,intensity=0.75,radius=9
+        })
+    end
+end
+
+-- -----------------------------------------------------------------------------------
+-- An event handler for screen taps.
+-- -----------------------------------------------------------------------------------
+local function tapListener()
+    stateMachine.nextState()
 end
 
 -- -----------------------------------------------------------------------------------
@@ -291,10 +350,7 @@ function scene:create( event )
         tileEngineInstance = tileEngine
     })
 
-    -- Add a light at the top part of the room.
-    topLightId = lightingModel.addLight({
-        row=5,column=8,r=1,g=1,b=0.7,intensity=0.75,radius=9
-    })
+    stateMachine.init()
 
     -- Finally, set the ambient light to white light with medium-high intensity.
     lightingModel.setAmbientLight(1,1,1,0.15)
@@ -318,6 +374,9 @@ function scene:show( event )
 
         -- Register the onFrame event handler to be called before each frame.
         Runtime:addEventListener( "enterFrame", onFrame )
+
+        -- Register an event listener to handle screen taps.
+        Runtime:addEventListener( "tap", tapListener )
     elseif ( phase == "did" ) then
         -- Code here runs when the scene is entirely on screen
     end
@@ -334,6 +393,9 @@ function scene:hide( event )
 
         -- Remove the onFrame event handler.
         Runtime:removeEventListener( "enterFrame", onFrame )
+
+        -- Remove the event listener for taps
+        Runtime:removeEventListener( "tap", tapListener)
     elseif ( phase == "did" ) then
         -- Code here runs immediately after the scene goes entirely off screen
     end
